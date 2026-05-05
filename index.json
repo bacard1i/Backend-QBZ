@@ -8,7 +8,7 @@
       "download": "https://raw.githubusercontent.com/bacard1i/backend-QBZ/main/qobuz-bitch.js",
       "version": "6.5",
       "author": "bacardii",
-      "description": "Most Powerful Qobuz Module (kHz fixed + fallback)",
+      "description": "Most Powerful Qobuz Module (kHz fixed)",
       "tags": ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
       "featured": true,
       "trusted": true,
