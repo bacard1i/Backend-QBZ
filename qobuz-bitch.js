@@ -11,7 +11,7 @@ function fetchJSON(url) {
                 resolve(data);
             })
             .catch(function(err) {
-                console.error(err);
+                console.error("[Qobuz Bitch]", err);
                 reject(err);
             });
     });
@@ -21,8 +21,8 @@ var QobuzBitch = {
     id: "qobuz-bacardii-hires",
     name: "Qobuz’s bitch",
     author: "bacardii",
-    version: "2.3",
-    description: "Strict 24-bit Hi-Res Qobuz",
+    version: "2.4",
+    description: "Strict 24-bit Hi-Res Qobuz via Backend",
 
     searchTracks: function(query, limit) {
         if (!limit) limit = 25;
@@ -53,4 +53,5 @@ var QobuzBitch = {
     }
 };
 
+// MUST be the last line - This is what 8SPINE reads
 QobuzBitch;
