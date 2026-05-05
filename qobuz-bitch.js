@@ -33,6 +33,8 @@ var searchTracks = function(query, limit){
     var good = items.filter(isHires).slice(0,limit);
     return {
       tracks: good.map(function(t){
+        var sr = t.maximum_sampling_rate || t.sampling_rate;
+        var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
         return {
           id: String(t.id),
           title: t.title,
@@ -40,7 +42,7 @@ var searchTracks = function(query, limit){
           album: t.album ? t.album.title : "",
           albumId: t.album ? String(t.album.id) : "",
           duration: t.duration||0,
-          audioQuality: "24-bit Hi-Res",
+          audioQuality: "24-bit / " + hz,
           cover: t.album && t.album.image ? t.album.image.large : ""
         };
       }),
@@ -57,7 +59,13 @@ var getTrackStreamUrl = function(trackId){
             "&track_id="+trackId+"&format_id=27&intent=stream&request_ts="+ts+"&request_sig="+sig;
   return fetch(url).then(function(r){ if(!r.ok) throw new Error("Stream HTTP "+r.status); return r.json(); })
     .then(function(data){
-      return { streamUrl: data.url, track: { audioQuality: "24-bit Hi-Res" } };
+      var bit = data.bit_depth || 24;
+      var sr = data.sample_rate || 96000;
+      var hz = Math.round(sr / 1000) + "kHz";
+      return {
+        streamUrl: data.url,
+        track: { audioQuality: bit + "-bit / " + hz }
+      };
     });
 };
 
@@ -67,13 +75,15 @@ var getAlbum = function(albumId){
     return {
       album: { id: albumId, title: data.title, artist: data.artist ? data.artist.name : "" },
       tracks: tracks.filter(isHires).map(function(t){
+        var sr = t.maximum_sampling_rate || t.sampling_rate;
+        var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
         return {
           id: String(t.id),
           title: t.title,
           artist: t.performer ? t.performer.name : (data.artist ? data.artist.name : ""),
           duration: t.duration,
           trackNumber: t.track_number,
-          audioQuality: "24-bit Hi-Res"
+          audioQuality: "24-bit / " + hz
         };
       })
     };
@@ -84,8 +94,8 @@ return {
   id: "qobuz-bacardii-hires",
   name: "Qobuz’s bitch",
   author: "bacardii",
-  version: "5.0-direct",
-  description: "Direct 24-bit Hi-Res from Qobuz (Fast & Smooth)",
+  version: "5.1-hz",
+  description: "Direct 24-bit Hi-Res from Qobuz (shows real sample rate)",
   labels: ["QOBUZ","HI-RES","24-BIT","FLAC","FAST"],
   searchTracks: searchTracks,
   getTrackStreamUrl: getTrackStreamUrl,
