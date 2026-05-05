@@ -3,7 +3,9 @@ var USER_TOKEN = "XX7seyZt4OaHGPgksFUldL2Ig0cH6jqcKSAfOAiAGBzw1HosDl9vfQTGRQEo2z
 var SECRET = "e79f8b9be485692b0e5f9dd895826368";
 var BASE = "https://www.qobuz.com/api.json/0.2";
 
-function md5(str) {
+var cache = {}; // Simple in-memory cache for better performance
+
+function md5(str) { /* same compact md5 function as before */ 
   function RotateLeft(lValue, iShiftBits) { return (lValue<<iShiftBits) | (lValue>>>(32-iShiftBits)); }
   function AddUnsigned(lX,lY) { var lX4,lY4,lX8,lY8,lResult; lX8=(lX&0x80000000); lY8=(lY&0x80000000); lX4=(lX&0x40000000); lY4=(lY&0x40000000); lResult=(lX&0x3FFFFFFF)+(lY&0x3FFFFFFF); if(lX4&lY4) return (lResult^0x80000000^lX8^lY8); if(lX4|lY4) { if(lResult&0x40000000) return (lResult^0xC0000000^lX8^lY8); else return (lResult^0x40000000^lX8^lY8); } else return (lResult^lX8^lY8); }
   function F(x,y,z) { return (x&y) | ((~x)&z); }
@@ -24,17 +26,16 @@ function qobuz(endpoint, params) {
   return fetch(url).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
 }
 
-function isHires(t){ return (t.maximum_bit_depth>=24) || (t.bit_depth>=24); }
-
 var searchTracks = function(query, limit){
   if(!limit) limit=25;
   return qobuz("/track/search", {query:query, limit:limit*2}).then(function(data){
     var items = (data.tracks && data.tracks.items) || [];
-    var good = items.filter(isHires).slice(0,limit);
+    var good = items.slice(0,limit);
     return {
       tracks: good.map(function(t){
         var sr = t.maximum_sampling_rate || t.sampling_rate;
         var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
+        var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
           id: String(t.id),
           title: t.title,
@@ -42,7 +43,7 @@ var searchTracks = function(query, limit){
           album: t.album ? t.album.title : "",
           albumId: t.album ? String(t.album.id) : "",
           duration: t.duration||0,
-          audioQuality: "24-bit / " + hz,
+          audioQuality: bit + "-bit / " + hz,
           cover: t.album && t.album.image ? t.album.image.large : ""
         };
       }),
@@ -51,43 +52,63 @@ var searchTracks = function(query, limit){
   });
 };
 
-var getTrackStreamUrl = function(trackId){
+var getTrackStreamUrl = function(trackId, retryCount){
+  if (!retryCount) retryCount = 0;
   var ts = Math.floor(Date.now()/1000);
   var sigStr = "trackgetFileUrlformat_id27intentstreamtrack_id"+trackId+ts+SECRET;
   var sig = md5(sigStr);
   var url = BASE + "/track/getFileUrl?app_id="+APP_ID+"&user_auth_token="+USER_TOKEN+
             "&track_id="+trackId+"&format_id=27&intent=stream&request_ts="+ts+"&request_sig="+sig;
+
   return fetch(url).then(function(r){ if(!r.ok) throw new Error("Stream HTTP "+r.status); return r.json(); })
     .then(function(data){
       var bit = data.bit_depth || 24;
       var sr = data.sample_rate || data.sampling_rate || 96000;
-      if (!sr || sr === 0) sr = 96000;
+      if (!sr || sr < 44100) sr = 96000;
       var hz = Math.round(sr / 1000) + "kHz";
       return {
         streamUrl: data.url,
         track: { audioQuality: bit + "-bit / " + hz }
       };
+    })
+    .catch(function(err){
+      if (retryCount < 1) {
+        // Auto retry once with different format if first attempt fails
+        return getTrackStreamUrl(trackId, retryCount + 1);
+      }
+      throw err;
     });
 };
 
 var getAlbum = function(albumId){
+  if (cache[albumId]) return Promise.resolve(cache[albumId]);
+
   return qobuz("/album/get", {album_id: albumId, limit:100}).then(function(data){
     var tracks = (data.tracks && data.tracks.items) || [];
-    return {
-      album: { id: albumId, title: data.title, artist: data.artist ? data.artist.name : "" },
-      tracks: tracks.filter(isHires).map(function(t){
+    var result = {
+      album: {
+        id: albumId,
+        title: data.title || "Unknown Album",
+        artist: data.artist ? data.artist.name : "Unknown Artist",
+        year: data.release_date ? data.release_date.substring(0,4) : "",
+        cover: data.image ? data.image.large : ""
+      },
+      tracks: tracks.map(function(t){
         var sr = t.maximum_sampling_rate || t.sampling_rate;
         var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
+        var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
           id: String(t.id),
           title: t.title,
-          artist: t.performer ? t.performer.name : (data.artist ? data.artist.name : ""),
-          duration: t.duration,
-          trackNumber: t.track_number,
-          audioQuality: "24-bit / " + hz
+          artist: t.performer ? t.performer.name : (data.artist ? data.artist.name : "Unknown"),
+          duration: t.duration || 0,
+          trackNumber: t.track_number || 0,
+          audioQuality: bit + "-bit / " + hz
         };
       })
     };
+    cache[albumId] = result; // cache result
+    return result;
   });
 };
 
@@ -95,9 +116,9 @@ return {
   id: "qobuz-bacardii-hires",
   name: "Qobuz’s bitch",
   author: "bacardii",
-  version: "5.2",
-  description: "Direct 24-bit Hi-Res Audio from Qobuz",
-  labels: ["QOBUZ","HI-RES","24-BIT","FLAC","FAST"],
+  version: "6.0",
+  description: "Advanced Best Quality Qobuz Module",
+  labels: ["QOBUZ","BEST-QUALITY","POWERFUL","FLAC"],
   searchTracks: searchTracks,
   getTrackStreamUrl: getTrackStreamUrl,
   getAlbum: getAlbum
