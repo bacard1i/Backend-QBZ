@@ -60,7 +60,8 @@ var getTrackStreamUrl = function(trackId){
   return fetch(url).then(function(r){ if(!r.ok) throw new Error("Stream HTTP "+r.status); return r.json(); })
     .then(function(data){
       var bit = data.bit_depth || 24;
-      var sr = data.sample_rate || 96000;
+      var sr = data.sample_rate || data.sampling_rate || 96000;
+      if (!sr || sr === 0) sr = 96000; // fallback when Qobuz returns 0
       var hz = Math.round(sr / 1000) + "kHz";
       return {
         streamUrl: data.url,
@@ -94,7 +95,7 @@ return {
   id: "qobuz-bacardii-hires",
   name: "Qobuz’s bitch",
   author: "bacardii",
-  version: "5.1",
+  version: "5.2",
   description: "Direct 24-bit Hi-Res Audio from Qobuz",
   labels: ["QOBUZ","HI-RES","24-BIT","FLAC","FAST"],
   searchTracks: searchTracks,
