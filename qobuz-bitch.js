@@ -42,7 +42,7 @@ var searchTracks = function(query, limit){
           album: t.album ? t.album.title : "",
           albumId: t.album ? String(t.album.id) : "",
           duration: t.duration||0,
-          audioQuality: bit + "-bit / " + sr + " kHz",   // ← geolier2's exact kHz line
+          audioQuality: bit + "-bit / " + sr + " kHz",
           cover: t.album && t.album.image ? t.album.image.large : ""
         };
       }),
@@ -72,7 +72,7 @@ var getTrackStreamUrl = function(trackId){
           var realBit = trackInfo.maximum_bit_depth || trackInfo.bit_depth || 24;
           var result = {
             streamUrl: data.url,
-            track: { audioQuality: realBit + "-bit / " + realSr + " kHz" }   // ← geolier2 style
+            track: { audioQuality: realBit + "-bit / " + realSr + " kHz" }
           };
           cache[cacheKey] = result;
           return result;
@@ -81,7 +81,7 @@ var getTrackStreamUrl = function(trackId){
 
       var result = {
         streamUrl: data.url,
-        track: { audioQuality: bit + "-bit / " + sr + " kHz" }   // ← geolier2 style
+        track: { audioQuality: bit + "-bit / " + sr + " kHz" }
       };
       cache[cacheKey] = result;
       return result;
@@ -122,10 +122,10 @@ var getAlbum = function(albumId){
 };
 
 return {
-  id: "qobuz-bacardii-hires",
-  name: "Qobuz’s bitch",
+  id: "qobuz-rocks8ar",
+  name: "Rocks8ar",
   author: "bacardii",
-  version: "6.5",
+  version: "1.0",
   description: "Most Powerful Qobuz Module (kHz fixed)",
   labels: ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
   searchTracks: searchTracks,
