@@ -3,9 +3,9 @@ var USER_TOKEN = "XX7seyZt4OaHGPgksFUldL2Ig0cH6jqcKSAfOAiAGBzw1HosDl9vfQTGRQEo2z
 var SECRET = "e79f8b9be485692b0e5f9dd895826368";
 var BASE = "https://www.qobuz.com/api.json/0.2";
 
-var cache = {}; // Powerful caching system
+var cache = {};
 
-function md5(str) { /* compact md5 - same as before */ 
+function md5(str) { /* md5 function - kept as is */ 
   function RotateLeft(lValue, iShiftBits) { return (lValue<<iShiftBits) | (lValue>>>(32-iShiftBits)); }
   function AddUnsigned(lX,lY) { var lX4,lY4,lX8,lY8,lResult; lX8=(lX&0x80000000); lY8=(lY&0x80000000); lX4=(lX&0x40000000); lY4=(lY&0x40000000); lResult=(lX&0x3FFFFFFF)+(lY&0x3FFFFFFF); if(lX4&lY4) return (lResult^0x80000000^lX8^lY8); if(lX4|lY4) { if(lResult&0x40000000) return (lResult^0xC0000000^lX8^lY8); else return (lResult^0x40000000^lX8^lY8); } else return (lResult^lX8^lY8); }
   function F(x,y,z) { return (x&y) | ((~x)&z); }
@@ -33,7 +33,7 @@ var searchTracks = function(query, limit){
     var good = items.slice(0,limit);
     return {
       tracks: good.map(function(t){
-        var sr = t.maximum_sampling_rate || t.sampling_rate;
+        var sr = t.maximum_sampling_rate || t.sampling_rate || 0;
         var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
         var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
@@ -53,9 +53,8 @@ var searchTracks = function(query, limit){
 };
 
 var getTrackStreamUrl = function(trackId){
-  if (cache["stream_" + trackId]) {
-    return Promise.resolve(cache["stream_" + trackId]);
-  }
+  var cacheKey = "stream_" + trackId;
+  if (cache[cacheKey]) return Promise.resolve(cache[cacheKey]);
 
   var ts = Math.floor(Date.now()/1000);
   var sigStr = "trackgetFileUrlformat_id27intentstreamtrack_id"+trackId+ts+SECRET;
@@ -69,6 +68,7 @@ var getTrackStreamUrl = function(trackId){
       var sr = data.sample_rate || data.sampling_rate || 0;
 
       if (!sr || sr < 44100) {
+        // Fallback to album query if direct track fails (Geolier2 suggestion)
         return qobuz("/track/get", {track_id: trackId}).then(function(trackInfo){
           var realSr = trackInfo.maximum_sampling_rate || trackInfo.sampling_rate || 96000;
           var realBit = trackInfo.maximum_bit_depth || trackInfo.bit_depth || 24;
@@ -76,7 +76,7 @@ var getTrackStreamUrl = function(trackId){
             streamUrl: data.url,
             track: { audioQuality: realBit + "-bit / " + Math.round(realSr/1000) + "kHz" }
           };
-          cache["stream_" + trackId] = result;
+          cache[cacheKey] = result;
           return result;
         });
       }
@@ -85,15 +85,17 @@ var getTrackStreamUrl = function(trackId){
         streamUrl: data.url,
         track: { audioQuality: bit + "-bit / " + Math.round(sr/1000) + "kHz" }
       };
-      cache["stream_" + trackId] = result;
+      cache[cacheKey] = result;
       return result;
+    })
+    .catch(function() {
+      throw new Error("Failed to load song. Please skip to the next track.");
     });
 };
 
 var getAlbum = function(albumId){
-  if (cache["album_" + albumId]) {
-    return Promise.resolve(cache["album_" + albumId]);
-  }
+  var cacheKey = "album_" + albumId;
+  if (cache[cacheKey]) return Promise.resolve(cache[cacheKey]);
 
   return qobuz("/album/get", {album_id: albumId, limit:100}).then(function(data){
     var tracks = (data.tracks && data.tracks.items) || [];
@@ -105,7 +107,7 @@ var getAlbum = function(albumId){
         year: data.release_date ? data.release_date.substring(0,4) : ""
       },
       tracks: tracks.map(function(t){
-        var sr = t.maximum_sampling_rate || t.sampling_rate;
+        var sr = t.maximum_sampling_rate || t.sampling_rate || 0;
         var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
         var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
@@ -118,7 +120,7 @@ var getAlbum = function(albumId){
         };
       })
     };
-    cache["album_" + albumId] = result;
+    cache[cacheKey] = result;
     return result;
   });
 };
@@ -127,9 +129,9 @@ return {
   id: "qobuz-bacardii-hires",
   name: "Qobuz’s bitch",
   author: "bacardii",
-  version: "6.3",
-  description: "Most Powerful Qobuz Module",
-  labels: ["QOBUZ", "POWERFUL", "SMART-QUALITY", "FLAC"],
+  version: "6.5",
+  description: "Most Powerful Qobuz Module (kHz fixed + fallback)",
+  labels: ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
   searchTracks: searchTracks,
   getTrackStreamUrl: getTrackStreamUrl,
   getAlbum: getAlbum
