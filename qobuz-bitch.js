@@ -1,61 +1,69 @@
 const BACKEND_URL = "https://backend-qbz-production.up.railway.app";
 
-async function fetchWithTimeout(url, timeout = 15000) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(id);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-    } catch (e) {
-        clearTimeout(id);
-        throw e;
-    }
+function fetchWithTimeout(url, timeout) {
+    return new Promise(function(resolve, reject) {
+        var controller = new AbortController();
+        var signal = controller.signal;
+        var timer = setTimeout(function() {
+            controller.abort();
+            reject(new Error("Request timeout"));
+        }, timeout || 15000);
+
+        fetch(url, { signal: signal }).then(function(res) {
+            clearTimeout(timer);
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return res.json();
+        }).then(function(data) {
+            resolve(data);
+        }).catch(function(err) {
+            clearTimeout(timer);
+            reject(err);
+        });
+    });
 }
 
-const module = {
+var module = {
     id: "qobuz-bacardii-hires",
     name: "Qobuz’s bitch",
     author: "bacardii",
-    version: "2.0",
-    description: "Strict 24-bit Hi-Res Qobuz (Portugal)",
-    labels: ["QOBUZ", "HI-RES", "24-BIT"],
+    version: "2.2",
+    description: "Strict 24-bit Hi-Res Qobuz (Portugal) - Personal Backend",
 
-    searchTracks: async (query, limit = 25) => {
-        try {
-            const url = `${BACKEND_URL}/8spine/search?q=${encodeURIComponent(query)}&limit=${limit}`;
-            const data = await fetchWithTimeout(url);
+    searchTracks: function(query, limit) {
+        limit = limit || 25;
+        var url = BACKEND_URL + "/8spine/search?q=" + encodeURIComponent(query) + "&limit=" + limit;
+        
+        return fetchWithTimeout(url, 15000).then(function(data) {
             return { tracks: data.tracks || [], total: data.total || 0 };
-        } catch (e) {
+        }).catch(function(e) {
             console.error(e);
             return { tracks: [], total: 0 };
-        }
+        });
     },
 
-    getTrackStreamUrl: async (trackId) => {
-        try {
-            const url = `${BACKEND_URL}/8spine/stream/${trackId}`;
-            const data = await fetchWithTimeout(url);
+    getTrackStreamUrl: function(trackId) {
+        var url = BACKEND_URL + "/8spine/stream/" + trackId;
+        
+        return fetchWithTimeout(url, 15000).then(function(data) {
             return {
                 streamUrl: data.streamUrl,
                 track: { audioQuality: "24-bit Hi-Res" }
             };
-        } catch (e) {
+        }).catch(function(e) {
             console.error(e);
             throw e;
-        }
+        });
     },
 
-    getAlbum: async (albumId) => {
-        try {
-            const url = `${BACKEND_URL}/8spine/album?album_id=${albumId}`;
-            const data = await fetchWithTimeout(url);
+    getAlbum: function(albumId) {
+        var url = BACKEND_URL + "/8spine/album?album_id=" + albumId;
+        
+        return fetchWithTimeout(url, 15000).then(function(data) {
             return data;
-        } catch (e) {
+        }).catch(function(e) {
             console.error(e);
             throw e;
-        }
+        });
     }
 };
 
