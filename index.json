@@ -6,26 +6,15 @@
       "pkg": "com.8spine.module.qobuz.bacardii.hires",
       "file": "qobuz-bitch.js",
       "download": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-      "version": "2.1",
-      "code": 2025,
-      "type": "MODULE",
+      "version": "5.0",
       "author": "bacardii",
-      "description": "Strict 24-bit Hi-Res Qobuz (Portugal) - Personal Backend",
-      "tags": ["QOBUZ", "HI-RES", "24-BIT", "FLAC", "ROCK", "METAL"],
+      "description": "Direct 24-bit Hi-Res from Qobuz (Fast & Smooth)",
+      "tags": ["QOBUZ", "HI-RES", "24-BIT", "FLAC", "FAST"],
       "featured": true,
       "trusted": true,
       "nsfw": false,
-      "size": 2800,
-      "lang": "all",
-      "folder": "modules",
-      "sources": [
-        {
-          "name": "Qobuz’s bitch",
-          "lang": "all",
-          "id": "qobuz-bacardii-hires",
-          "baseUrl": "."
-        }
-      ]
+      "size": 5200,
+      "lang": "all"
     }
   ]
 }
