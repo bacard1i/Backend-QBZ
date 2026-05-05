@@ -4,7 +4,6 @@ var SECRET = "e79f8b9be485692b0e5f9dd895826368";
 var BASE = "https://www.qobuz.com/api.json/0.2";
 
 function md5(str) {
-  // compact md5 implementation
   function RotateLeft(lValue, iShiftBits) { return (lValue<<iShiftBits) | (lValue>>>(32-iShiftBits)); }
   function AddUnsigned(lX,lY) { var lX4,lY4,lX8,lY8,lResult; lX8=(lX&0x80000000); lY8=(lY&0x80000000); lX4=(lX&0x40000000); lY4=(lY&0x40000000); lResult=(lX&0x3FFFFFFF)+(lY&0x3FFFFFFF); if(lX4&lY4) return (lResult^0x80000000^lX8^lY8); if(lX4|lY4) { if(lResult&0x40000000) return (lResult^0xC0000000^lX8^lY8); else return (lResult^0x40000000^lX8^lY8); } else return (lResult^lX8^lY8); }
   function F(x,y,z) { return (x&y) | ((~x)&z); }
@@ -86,7 +85,7 @@ return {
   name: "Qobuz’s bitch",
   author: "bacardii",
   version: "5.0-direct",
-  description: "Direct 24-bit Hi-Res from Qobuz (fast & smooth)",
+  description: "Direct 24-bit Hi-Res from Qobuz (Fast & Smooth)",
   labels: ["QOBUZ","HI-RES","24-BIT","FLAC","FAST"],
   searchTracks: searchTracks,
   getTrackStreamUrl: getTrackStreamUrl,
