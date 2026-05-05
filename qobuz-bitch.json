@@ -1,0 +1,12 @@
+{
+  "category": "streaming",
+  "id": "qobuz-bacardii-hires",
+  "name": "Qobuz’s bitch",
+  "author": "bacardii",
+  "version": "2.0",
+  "description": "Strict 24-bit Hi-Res Qobuz via personal backend",
+  "icon": "🦇",
+  "labels": ["QOBUZ", "HI-RES", "24-BIT", "FLAC", "ROCK", "METAL"],
+  "url": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
+  "type": "javascript"
+}
