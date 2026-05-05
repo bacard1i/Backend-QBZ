@@ -5,15 +5,15 @@
       "name": "Qobuz’s bitch",
       "pkg": "com.8spine.module.qobuz.bacardii.hires",
       "file": "qobuz-bitch.js",
-      "download": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-      "version": "6.3",
+      "download": "https://raw.githubusercontent.com/bacard1i/backend-QBZ/main/qobuz-bitch.js",
+      "version": "6.5",
       "author": "bacardii",
-      "description": "Most Powerful Qobuz Module",
-      "tags": ["QOBUZ", "POWERFUL", "SMART-QUALITY", "FLAC"],
+      "description": "Most Powerful Qobuz Module (kHz fixed + fallback)",
+      "tags": ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
       "featured": true,
       "trusted": true,
       "nsfw": false,
-      "size": 6800,
+      "size": 7200,
       "lang": "all"
     }
   ]
