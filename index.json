@@ -1,12 +1,12 @@
 {
   "category:modules": [
     {
-      "id": "qobuz-bacardii-hires",
-      "name": "Qobuz’s bitch",
-      "pkg": "com.8spine.module.qobuz.bacardii.hires",
+      "id": "qobuz-rocks8ar",
+      "name": "Rocks8ar",
+      "pkg": "com.8spine.module.qobuz.rocks8ar",
       "file": "qobuz-bitch.js",
       "download": "https://raw.githubusercontent.com/bacard1i/backend-QBZ/main/qobuz-bitch.js",
-      "version": "6.5",
+      "version": "1.0",
       "author": "bacardii",
       "description": "Most Powerful Qobuz Module (kHz fixed)",
       "tags": ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
