@@ -61,7 +61,7 @@ var getTrackStreamUrl = function(trackId){
     .then(function(data){
       var bit = data.bit_depth || 24;
       var sr = data.sample_rate || data.sampling_rate || 96000;
-      if (!sr || sr === 0) sr = 96000; // fallback when Qobuz returns 0
+      if (!sr || sr === 0) sr = 96000;
       var hz = Math.round(sr / 1000) + "kHz";
       return {
         streamUrl: data.url,
