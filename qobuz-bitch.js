@@ -1,4 +1,4 @@
-var BACKEND_URL = "https://backend-qbz-production.up.railway.app";
+var BACKEND_URL = "https://backend-qbz-production-18df.up.railway.app";
 
 function fetchJSON(url) {
     return new Promise(function(resolve, reject) {
