@@ -1,12 +1,20 @@
 {
-  "category": "streaming",
-  "id": "qobuz-bacardii-hires",
-  "name": "Qobuz’s bitch",
-  "author": "bacardii",
-  "version": "2.0",
-  "description": "Strict 24-bit Hi-Res Qobuz via personal backend",
-  "icon": "🦇",
-  "labels": ["QOBUZ", "HI-RES", "24-BIT", "FLAC", "ROCK", "METAL"],
-  "url": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-  "type": "javascript"
+  "category:modules": [
+    {
+      "id": "qobuz-bacardii-hires",
+      "name": "Qobuz’s bitch",
+      "pkg": "com.8spine.module.qobuz.bacardii.hires",
+      "file": "qobuz-bitch.js",
+      "download": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
+      "version": "5.1",
+      "author": "bacardii",
+      "description": "Direct 24-bit Hi-Res Audio from Qobuz",
+      "tags": ["QOBUZ", "HI-RES", "24-BIT", "FLAC", "FAST"],
+      "featured": true,
+      "trusted": true,
+      "nsfw": false,
+      "size": 5500,
+      "lang": "all"
+    }
+  ]
 }
