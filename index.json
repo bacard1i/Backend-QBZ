@@ -6,14 +6,14 @@
       "pkg": "com.8spine.module.qobuz.bacardii.hires",
       "file": "qobuz-bitch.js",
       "download": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-      "version": "5.2",
+      "version": "6.0",
       "author": "bacardii",
-      "description": "Direct 24-bit Hi-Res Audio from Qobuz",
-      "tags": ["QOBUZ", "HI-RES", "24-BIT", "FLAC", "FAST"],
+      "description": "Advanced Best Quality Qobuz Module",
+      "tags": ["QOBUZ", "BEST-QUALITY", "POWERFUL", "FLAC"],
       "featured": true,
       "trusted": true,
       "nsfw": false,
-      "size": 5600,
+      "size": 6200,
       "lang": "all"
     }
   ]
