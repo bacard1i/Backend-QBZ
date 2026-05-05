@@ -5,7 +5,7 @@ var BASE = "https://www.qobuz.com/api.json/0.2";
 
 var cache = {};
 
-function md5(str) { /* md5 function - kept as is */ 
+function md5(str) { 
   function RotateLeft(lValue, iShiftBits) { return (lValue<<iShiftBits) | (lValue>>>(32-iShiftBits)); }
   function AddUnsigned(lX,lY) { var lX4,lY4,lX8,lY8,lResult; lX8=(lX&0x80000000); lY8=(lY&0x80000000); lX4=(lX&0x40000000); lY4=(lY&0x40000000); lResult=(lX&0x3FFFFFFF)+(lY&0x3FFFFFFF); if(lX4&lY4) return (lResult^0x80000000^lX8^lY8); if(lX4|lY4) { if(lResult&0x40000000) return (lResult^0xC0000000^lX8^lY8); else return (lResult^0x40000000^lX8^lY8); } else return (lResult^lX8^lY8); }
   function F(x,y,z) { return (x&y) | ((~x)&z); }
@@ -34,7 +34,6 @@ var searchTracks = function(query, limit){
     return {
       tracks: good.map(function(t){
         var sr = t.maximum_sampling_rate || t.sampling_rate || 0;
-        var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
         var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
           id: String(t.id),
@@ -43,7 +42,7 @@ var searchTracks = function(query, limit){
           album: t.album ? t.album.title : "",
           albumId: t.album ? String(t.album.id) : "",
           duration: t.duration||0,
-          audioQuality: bit + "-bit / " + hz,
+          audioQuality: bit + "-bit / " + sr + " kHz",   // ← geolier2's exact kHz line
           cover: t.album && t.album.image ? t.album.image.large : ""
         };
       }),
@@ -68,13 +67,12 @@ var getTrackStreamUrl = function(trackId){
       var sr = data.sample_rate || data.sampling_rate || 0;
 
       if (!sr || sr < 44100) {
-        // Fallback to album query if direct track fails (Geolier2 suggestion)
         return qobuz("/track/get", {track_id: trackId}).then(function(trackInfo){
           var realSr = trackInfo.maximum_sampling_rate || trackInfo.sampling_rate || 96000;
           var realBit = trackInfo.maximum_bit_depth || trackInfo.bit_depth || 24;
           var result = {
             streamUrl: data.url,
-            track: { audioQuality: realBit + "-bit / " + Math.round(realSr/1000) + "kHz" }
+            track: { audioQuality: realBit + "-bit / " + realSr + " kHz" }   // ← geolier2 style
           };
           cache[cacheKey] = result;
           return result;
@@ -83,7 +81,7 @@ var getTrackStreamUrl = function(trackId){
 
       var result = {
         streamUrl: data.url,
-        track: { audioQuality: bit + "-bit / " + Math.round(sr/1000) + "kHz" }
+        track: { audioQuality: bit + "-bit / " + sr + " kHz" }   // ← geolier2 style
       };
       cache[cacheKey] = result;
       return result;
@@ -103,12 +101,10 @@ var getAlbum = function(albumId){
       album: {
         id: albumId,
         title: data.title || "Unknown Album",
-        artist: data.artist ? data.artist.name : "Unknown Artist",
-        year: data.release_date ? data.release_date.substring(0,4) : ""
+        artist: data.artist ? data.artist.name : "Unknown Artist"
       },
       tracks: tracks.map(function(t){
         var sr = t.maximum_sampling_rate || t.sampling_rate || 0;
-        var hz = sr ? Math.round(sr/1000) + "kHz" : "Hi-Res";
         var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
           id: String(t.id),
@@ -116,7 +112,7 @@ var getAlbum = function(albumId){
           artist: t.performer ? t.performer.name : (data.artist ? data.artist.name : ""),
           duration: t.duration || 0,
           trackNumber: t.track_number || 0,
-          audioQuality: bit + "-bit / " + hz
+          audioQuality: bit + "-bit / " + sr + " kHz"
         };
       })
     };
@@ -130,7 +126,7 @@ return {
   name: "Qobuz’s bitch",
   author: "bacardii",
   version: "6.5",
-  description: "Most Powerful Qobuz Module (kHz fixed + fallback)",
+  description: "Most Powerful Qobuz Module (kHz fixed)",
   labels: ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
   searchTracks: searchTracks,
   getTrackStreamUrl: getTrackStreamUrl,
