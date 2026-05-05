@@ -53,5 +53,4 @@ var QobuzBitch = {
     }
 };
 
-// MUST be the last line - This is what 8SPINE reads
 QobuzBitch;
