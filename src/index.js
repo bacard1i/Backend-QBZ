@@ -28,7 +28,7 @@ export default {
       let tidalTracks = [];
       let tidalError = null;
 
-      // ==================== QOBUZ ====================
+      // QOBUZ
       try {
         const qobuzUrl = `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit * 2}&country_code=${env.COUNTRY_CODE || "PT"}`;
         const qobuzRes = await fetch(qobuzUrl, {
@@ -56,7 +56,7 @@ export default {
           }));
       } catch (e) {}
 
-      // ==================== TIDAL (Different Method) ====================
+      // TIDAL (More reliable endpoint)
       try {
         const tokenRes = await fetch("https://auth.tidal.com/v1/oauth2/token", {
           method: "POST",
@@ -70,13 +70,11 @@ export default {
         const tokenData = await tokenRes.json();
 
         if (tokenData.access_token) {
-          // Using a different Tidal search endpoint
-          const tidalUrl = `https://openapi.tidal.com/v2/searchresults/${encodeURIComponent(query)}?countryCode=${env.COUNTRY_CODE || "US"}&limit=${limit}`;
+          const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.COUNTRY_CODE || "US"}`;
 
           const tidalRes = await fetch(tidalUrl, {
             headers: {
-              "Authorization": `Bearer ${tokenData.access_token}`,
-              "Content-Type": "application/vnd.tidal.v1+json"
+              "Authorization": `Bearer ${tokenData.access_token}`
             }
           });
 
@@ -84,17 +82,17 @@ export default {
             tidalError = `Tidal API returned status ${tidalRes.status}`;
           } else {
             const tidalData = await tidalRes.json();
-            const items = tidalData?.data?.relationships?.tracks?.data || [];
+            const items = tidalData?.items || [];
 
             tidalTracks = items.slice(0, limit).map(t => ({
               id: String(t.id),
-              title: t.attributes?.title || "Unknown",
-              artist: t.attributes?.artist?.name || "Unknown",
-              album: t.attributes?.album?.title || "",
-              duration: t.attributes?.duration || 0,
-              audioQuality: "HiFi",
-              cover: t.attributes?.imageLinks?.[0]?.href || "",
-              isrc: t.attributes?.isrc || null,
+              title: t.title,
+              artist: t.artist?.name || "Unknown",
+              album: t.album?.title || "",
+              duration: t.duration || 0,
+              audioQuality: t.audioQuality || "HiFi",
+              cover: t.album?.cover || "",
+              isrc: t.isrc || null,
               provider: "Tidal"
             }));
           }
@@ -105,7 +103,7 @@ export default {
         tidalError = e.message;
       }
 
-      // ==================== MERGE + DEDUP ====================
+      // MERGE + DEDUP
       const allTracks = [...qobuzTracks, ...tidalTracks];
       const seen = new Set();
       const finalTracks = allTracks.filter(track => {
@@ -125,7 +123,7 @@ export default {
     }
 
     return new Response(JSON.stringify({
-      message: "Rocks8ar Worker is running (Merged Search Attempt)"
+      message: "Rocks8ar Worker is running (Merged Search v3)"
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
