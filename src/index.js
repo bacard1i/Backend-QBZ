@@ -13,7 +13,6 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== TIDAL ONLY SEARCH (For Testing) ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
@@ -28,7 +27,6 @@ export default {
       let tidalTracks = [];
 
       try {
-        // Get Tidal Access Token
         const tokenRes = await fetch("https://auth.tidal.com/v1/oauth2/token", {
           method: "POST",
           headers: {
@@ -50,7 +48,6 @@ export default {
           });
         }
 
-        // Search Tidal
         const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.COUNTRY_CODE || "US"}`;
         
         const tidalRes = await fetch(tidalUrl, {
@@ -105,7 +102,7 @@ export default {
     }
 
     return new Response(JSON.stringify({
-      message: "Tidal Test Worker - Search only mode"
+      message: "Tidal Test Worker"
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
