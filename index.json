@@ -3,7 +3,7 @@
     "name": "Rocks8ar",
     "author": "bacardii",
     "version": "1.2",
-    "description": "Direct Qobuz Hi-Res with Aggressive Preloading & Better Error Handling",
+    "description": "Direct Qobuz Hi-Res with Aggressive Preloading",
     "url": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
     "labels": ["QOBUZ", "HI-RES", "PRELOAD", "STABLE", "STANDALONE"]
   }
