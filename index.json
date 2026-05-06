@@ -2,9 +2,9 @@
   "rocks8ar": {
     "name": "Rocks8ar",
     "author": "bacardii",
-    "version": "1.1",
-    "description": "Qobuz + Tidal Fallback",
+    "version": "1.2",
+    "description": "Direct Qobuz Hi-Res with Aggressive Preloading & Better Error Handling",
     "url": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-    "labels": ["QOBUZ", "TIDAL", "FALLBACK"]
+    "labels": ["QOBUZ", "HI-RES", "PRELOAD", "STABLE", "STANDALONE"]
   }
 }
