@@ -13,13 +13,12 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== TIDAL LOGIN (Authorization Code + PKCE) ====================
+    // ==================== TIDAL LOGIN ====================
     if (path === "/tidal/login") {
-      // Generate PKCE code verifier and challenge
-      const codeVerifier = crypto.randomUUID() + crypto.randomUUID();
+      // Generate PKCE values
+      const codeVerifier = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
       const encoder = new TextEncoder();
-      const data = encoder.encode(codeVerifier);
-      const digest = await crypto.subtle.digest("SHA-256", data);
+      const digest = await crypto.subtle.digest("SHA-256", encoder.encode(codeVerifier));
       const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
         .replace(/\+/g, "-")
         .replace(/\//g, "_")
@@ -34,9 +33,9 @@ export default {
         `&code_challenge_method=S256`;
 
       return new Response(JSON.stringify({
-        message: "Open this link to log in with Tidal",
+        message: "Open this link and log in with your Tidal account",
         login_url: authUrl,
-        code_verifier: codeVerifier // You'll need this later for token exchange
+        code_verifier: codeVerifier
       }), {
         headers: { "Content-Type": "application/json", ...corsHeaders }
       });
@@ -56,12 +55,14 @@ export default {
 
       try {
         const qobuzUrl = `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit * 2}&country_code=${env.COUNTRY_CODE || "PT"}`;
+        
         const qobuzRes = await fetch(qobuzUrl, {
           headers: {
             "X-App-Id": env.QOBUZ_APP_ID,
             "X-User-Auth-Token": env.QOBUZ_USER_AUTH_TOKEN
           }
         });
+
         const qobuzData = await qobuzRes.json();
         const items = qobuzData?.tracks?.items || [];
 
@@ -85,6 +86,7 @@ export default {
         }), {
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
+
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), {
           status: 500,
