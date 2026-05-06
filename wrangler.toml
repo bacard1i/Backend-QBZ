@@ -1,13 +1,9 @@
-# wrangler.toml - Clean version for Rocks8ar
-
 name = "pushit"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 
-# Environment variables (secrets should be set in Cloudflare dashboard)
 [vars]
 COUNTRY_CODE = "PT"
 
-# Optional: If you want to enable logs in the dashboard
 [observability]
 enabled = true
