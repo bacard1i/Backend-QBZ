@@ -1,7 +1,10 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const path = url.pathname;
+    let path = url.pathname;
+
+    // Remove trailing slash if exists
+    if (path.endsWith("/")) path = path.slice(0, -1);
 
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
@@ -13,7 +16,7 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== TIDAL LOGIN (Device Code Flow) ====================
+    // ==================== TIDAL LOGIN ====================
     if (path === "/tidal/login") {
       try {
         const deviceRes = await fetch("https://auth.tidal.com/v1/oauth2/device_authorization", {
@@ -27,6 +30,16 @@ export default {
 
         const deviceData = await deviceRes.json();
 
+        if (!deviceData.verification_uri_complete) {
+          return new Response(JSON.stringify({
+            error: "Failed to get login URL",
+            details: deviceData
+          }), {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders }
+          });
+        }
+
         return new Response(JSON.stringify({
           message: "Open this link and log in with your Tidal account",
           login_url: deviceData.verification_uri_complete,
@@ -35,6 +48,7 @@ export default {
         }), {
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
+
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 500,
@@ -43,7 +57,7 @@ export default {
       }
     }
 
-    // ==================== SEARCH (Qobuz only for now) ====================
+    // ==================== SEARCH ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
