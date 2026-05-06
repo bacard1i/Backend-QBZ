@@ -38,16 +38,16 @@ var preloadTrack = function(trackId) {
 
 var getAlbum = function(albumId) {
     var url = BACKEND_URL + "/album?album_id=" + albumId;
-    return fetchJSON(url);
+    return fetchJSON(url).catch(() => null);
 };
 
 return {
     id: "qobuz-rocks8ar",
     name: "Rocks8ar",
     author: "bacardii",
-    version: "1.4",
-    description: "Direct QOBUZ PRO Hi-Res with Instant Playback",
-    labels: ["QOBUZ PRO", "HI-RES", "INSTANT PLAYBACK"],
+    version: "1.5",
+    description: "Direct QOBUZ PRO Hi-Res with Merged Tidal Search & Instant Playback",
+    labels: ["QOBUZ PRO", "HI-RES", "MERGED", "INSTANT PLAYBACK"],
     searchTracks: searchTracks,
     getTrackStreamUrl: getTrackStreamUrl,
     getAlbum: getAlbum,
