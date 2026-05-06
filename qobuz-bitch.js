@@ -133,12 +133,12 @@ var getAlbum = function(albumId) {
 };
 
 return {
-  id: "rocks8ar",
+  id: "qobuz-rocks8ar",
   name: "Rocks8ar",
   author: "bacardii",
-  version: "1.2",
-  description: "Direct Qobuz Hi-Res with Aggressive Preloading",
-  labels: ["QOBUZ", "HI-RES", "PRELOAD", "STABLE", "STANDALONE"],
+  version: "1.0",
+  description: "Most Powerful Qobuz Module (kHz fixed)",
+  labels: ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
   searchTracks: searchTracks,
   getTrackStreamUrl: getTrackStreamUrl,
   getAlbum: getAlbum,
