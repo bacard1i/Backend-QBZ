@@ -1,14 +1,11 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    let path = url.pathname;
-
-    // Remove trailing slash if exists
-    if (path.endsWith("/")) path = path.slice(0, -1);
+    const path = url.pathname;
 
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
@@ -16,45 +13,33 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== TIDAL LOGIN ====================
+    // ==================== TIDAL LOGIN (Authorization Code + PKCE) ====================
     if (path === "/tidal/login") {
-      try {
-        const deviceRes = await fetch("https://auth.tidal.com/v1/oauth2/device_authorization", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": "Basic " + btoa(env.TIDAL_CLIENT_ID + ":" + env.TIDAL_CLIENT_SECRET)
-          },
-          body: `client_id=${env.TIDAL_CLIENT_ID}&scope=r_usr+w_usr`
-        });
+      // Generate PKCE code verifier and challenge
+      const codeVerifier = crypto.randomUUID() + crypto.randomUUID();
+      const encoder = new TextEncoder();
+      const data = encoder.encode(codeVerifier);
+      const digest = await crypto.subtle.digest("SHA-256", data);
+      const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
 
-        const deviceData = await deviceRes.json();
+      const authUrl = `https://login.tidal.com/authorize?` +
+        `response_type=code` +
+        `&client_id=${env.TIDAL_CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent("https://pushit.hatestar.workers.dev/tidal/callback")}` +
+        `&scope=r_usr+w_usr` +
+        `&code_challenge=${codeChallenge}` +
+        `&code_challenge_method=S256`;
 
-        if (!deviceData.verification_uri_complete) {
-          return new Response(JSON.stringify({
-            error: "Failed to get login URL",
-            details: deviceData
-          }), {
-            status: 500,
-            headers: { "Content-Type": "application/json", ...corsHeaders }
-          });
-        }
-
-        return new Response(JSON.stringify({
-          message: "Open this link and log in with your Tidal account",
-          login_url: deviceData.verification_uri_complete,
-          user_code: deviceData.user_code,
-          expires_in: deviceData.expires_in
-        }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-      }
+      return new Response(JSON.stringify({
+        message: "Open this link to log in with Tidal",
+        login_url: authUrl,
+        code_verifier: codeVerifier // You'll need this later for token exchange
+      }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
     }
 
     // ==================== SEARCH ====================
