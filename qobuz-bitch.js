@@ -3,11 +3,10 @@ var USER_TOKEN = "XX7seyZt4OaHGPgksFUldL2Ig0cH6jqcKSAfOAiAGBzw1HosDl9vfQTGRQEo2z
 var SECRET = "e79f8b9be485692b0e5f9dd895826368";
 var BASE = "https://www.qobuz.com/api.json/0.2";
 
-var cache = {};           // General cache (albums, metadata)
-var streamCache = {};     // Dedicated cache for stream URLs (longer TTL)
-var preloadQueue = [];    // Tracks to preload in advance
+var cache = {};
+var streamCache = {};
+var preloadQueue = [];
 
-// Geolier's md5 (unchanged)
 function md5(str) { 
   function RotateLeft(lValue, iShiftBits) { return (lValue<<iShiftBits) | (lValue>>>(32-iShiftBits)); }
   function AddUnsigned(lX,lY) { var lX4,lY4,lX8,lY8,lResult; lX8=(lX&0x80000000); lY8=(lY&0x80000000); lX4=(lX&0x40000000); lY4=(lY&0x40000000); lResult=(lX&0x3FFFFFFF)+(lY&0x3FFFFFFF); if(lX4&lY4) return (lResult^0x80000000^lX8^lY8); if(lX4|lY4) { if(lResult&0x40000000) return (lResult^0xC0000000^lX8^lY8); else return (lResult^0x40000000^lX8^lY8); } else return (lResult^lX8^lY8); }
@@ -26,16 +25,16 @@ function md5(str) {
 function qobuz(endpoint, params) {
   var url = BASE + endpoint + "?app_id=" + APP_ID + "&user_auth_token=" + USER_TOKEN;
   if (params) for (var k in params) url += "&" + k + "=" + encodeURIComponent(params[k]);
-  return fetch(url).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+  return fetch(url).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
 }
 
-var searchTracks = function(query, limit){
-  if(!limit) limit=25;
-  return qobuz("/track/search", {query:query, limit:limit*2}).then(function(data){
+var searchTracks = function(query, limit) {
+  if (!limit) limit = 25;
+  return qobuz("/track/search", { query: query, limit: limit * 2 }).then(data => {
     var items = (data.tracks && data.tracks.items) || [];
-    var good = items.slice(0,limit);
+    var good = items.slice(0, limit);
     return {
-      tracks: good.map(function(t){
+      tracks: good.map(t => {
         var sr = t.maximum_sampling_rate || t.sampling_rate || 0;
         var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
@@ -44,7 +43,7 @@ var searchTracks = function(query, limit){
           artist: t.performer ? t.performer.name : "Unknown",
           album: t.album ? t.album.title : "",
           albumId: t.album ? String(t.album.id) : "",
-          duration: t.duration||0,
+          duration: t.duration || 0,
           audioQuality: bit + "-bit / " + sr + " kHz",
           cover: t.album && t.album.image ? t.album.image.large : ""
         };
@@ -59,21 +58,21 @@ var getTrackStreamUrl = async function(trackId, retry = 0) {
   if (streamCache[cacheKey]) return streamCache[cacheKey];
 
   try {
-    var ts = Math.floor(Date.now()/1000);
-    var sigStr = "trackgetFileUrlformat_id27intentstreamtrack_id"+trackId+ts+SECRET;
+    var ts = Math.floor(Date.now() / 1000);
+    var sigStr = "trackgetFileUrlformat_id27intentstreamtrack_id" + trackId + ts + SECRET;
     var sig = md5(sigStr);
-    var url = BASE + "/track/getFileUrl?app_id="+APP_ID+"&user_auth_token="+USER_TOKEN+
-              "&track_id="+trackId+"&format_id=27&intent=stream&request_ts="+ts+"&request_sig="+sig;
+    var url = BASE + "/track/getFileUrl?app_id=" + APP_ID + "&user_auth_token=" + USER_TOKEN +
+              "&track_id=" + trackId + "&format_id=27&intent=stream&request_ts=" + ts + "&request_sig=" + sig;
 
     var r = await fetch(url);
     if (!r.ok) throw new Error("HTTP " + r.status);
-
     var data = await r.json();
+
     var bit = data.bit_depth || 24;
     var sr = data.sample_rate || data.sampling_rate || 0;
 
     if (!sr || sr < 44100) {
-      var trackInfo = await qobuz("/track/get", {track_id: trackId});
+      var trackInfo = await qobuz("/track/get", { track_id: trackId });
       sr = trackInfo.maximum_sampling_rate || trackInfo.sampling_rate || 96000;
       bit = trackInfo.maximum_bit_depth || trackInfo.bit_depth || 24;
     }
@@ -82,41 +81,32 @@ var getTrackStreamUrl = async function(trackId, retry = 0) {
       streamUrl: data.url,
       track: { audioQuality: bit + "-bit / " + sr + " kHz" }
     };
-
     streamCache[cacheKey] = result;
     return result;
+
   } catch (err) {
     if (retry < 2) {
-      console.warn(`[Rocks8ar] Retry ${retry+1} for track ${trackId}`);
       return getTrackStreamUrl(trackId, retry + 1);
     }
-    throw new Error("Failed to load song after retries. Please skip.");
+    throw new Error("Failed to load song after retries.");
   }
 };
 
 var preloadTrack = function(trackId) {
-  // Preload current + next 5 tracks for smoother long playlists
   getTrackStreamUrl(trackId).catch(() => {});
-
-  // Preload next 5 tracks (if 8SPINE calls us sequentially)
   preloadQueue.push(trackId);
   if (preloadQueue.length > 5) preloadQueue.shift();
-
-  // Aggressive preload for next tracks
   for (let i = 1; i <= 5; i++) {
-    if (preloadQueue[i]) {
-      getTrackStreamUrl(preloadQueue[i]).catch(() => {});
-    }
+    if (preloadQueue[i]) getTrackStreamUrl(preloadQueue[i]).catch(() => {});
   }
-
   return Promise.resolve({ status: "preloaded" });
 };
 
-var getAlbum = function(albumId){
+var getAlbum = function(albumId) {
   var cacheKey = "album_" + albumId;
   if (cache[cacheKey]) return Promise.resolve(cache[cacheKey]);
 
-  return qobuz("/album/get", {album_id: albumId, limit:100}).then(function(data){
+  return qobuz("/album/get", { album_id: albumId, limit: 100 }).then(data => {
     var tracks = (data.tracks && data.tracks.items) || [];
     var result = {
       album: {
@@ -124,7 +114,7 @@ var getAlbum = function(albumId){
         title: data.title || "Unknown Album",
         artist: data.artist ? data.artist.name : "Unknown Artist"
       },
-      tracks: tracks.map(function(t){
+      tracks: tracks.map(t => {
         var sr = t.maximum_sampling_rate || t.sampling_rate || 0;
         var bit = t.maximum_bit_depth || t.bit_depth || 16;
         return {
@@ -148,7 +138,7 @@ return {
   author: "bacardii",
   version: "1.2",
   description: "Direct Qobuz Hi-Res with Aggressive Preloading",
-  labels: ["QOBUZ", "HI-RES", "PRELOAD", "STABLE"],
+  labels: ["QOBUZ", "HI-RES", "PRELOAD", "STABLE", "STANDALONE"],
   searchTracks: searchTracks,
   getTrackStreamUrl: getTrackStreamUrl,
   getAlbum: getAlbum,
