@@ -1,10 +1,29 @@
 {
-  "rocks8ar": {
-    "name": "Rocks8ar",
-    "author": "bacardii",
-    "version": "1.2",
-    "description": "Direct Qobuz Hi-Res with Aggressive Preloading",
-    "url": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-    "labels": ["QOBUZ", "HI-RES", "PRELOAD", "STABLE", "STANDALONE"]
-  }
+  "category:modules": [
+    {
+      "id": "qobuz-rocks8ar",
+      "name": "Rocks8ar",
+      "pkg": "com.8spine.module.qobuz.rocks8ar",
+      "file": "qobuz-bitch.js",
+      "download": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
+      "version": "1.0",
+      "author": "bacardii",
+      "description": "Most Powerful Qobuz Module (kHz fixed)",
+      "tags": ["QOBUZ", "POWERFUL", "HI-RES", "SMOOTH"],
+      "featured": false,
+      "trusted": true,
+      "nsfw": false,
+      "size": 8500,
+      "lang": "all",
+      "folder": "modules",
+      "sources": [
+        {
+          "name": "Rocks8ar",
+          "lang": "all",
+          "id": "qobuz-rocks8ar",
+          "baseUrl": "."
+        }
+      ]
+    }
+  ]
 }
