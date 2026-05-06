@@ -5,7 +5,7 @@ export default {
 
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
@@ -13,6 +13,37 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    // ==================== TIDAL LOGIN (Device Code Flow) ====================
+    if (path === "/tidal/login") {
+      try {
+        const deviceRes = await fetch("https://auth.tidal.com/v1/oauth2/device_authorization", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": "Basic " + btoa(env.TIDAL_CLIENT_ID + ":" + env.TIDAL_CLIENT_SECRET)
+          },
+          body: `client_id=${env.TIDAL_CLIENT_ID}&scope=r_usr+w_usr`
+        });
+
+        const deviceData = await deviceRes.json();
+
+        return new Response(JSON.stringify({
+          message: "Open this link and log in with your Tidal account",
+          login_url: deviceData.verification_uri_complete,
+          user_code: deviceData.user_code,
+          expires_in: deviceData.expires_in
+        }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      }
+    }
+
+    // ==================== SEARCH (Qobuz only for now) ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
@@ -24,11 +55,6 @@ export default {
         });
       }
 
-      let qobuzTracks = [];
-      let tidalTracks = [];
-      let tidalError = null;
-
-      // QOBUZ
       try {
         const qobuzUrl = `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit * 2}&country_code=${env.COUNTRY_CODE || "PT"}`;
         const qobuzRes = await fetch(qobuzUrl, {
@@ -40,7 +66,7 @@ export default {
         const qobuzData = await qobuzRes.json();
         const items = qobuzData?.tracks?.items || [];
 
-        qobuzTracks = items
+        const tracks = items
           .filter(t => (t.maximum_bit_depth || t.bit_depth || 0) >= 16)
           .slice(0, limit)
           .map(t => ({
@@ -51,79 +77,25 @@ export default {
             duration: t.duration || 0,
             audioQuality: `${t.maximum_bit_depth || t.bit_depth || 16}-bit / ${t.maximum_sampling_rate || t.sampling_rate || 0} kHz`,
             cover: t.album?.image?.large || "",
-            isrc: t.isrc || null,
-            provider: "Qobuz"
+            isrc: t.isrc || null
           }));
-      } catch (e) {}
 
-      // TIDAL (More reliable endpoint)
-      try {
-        const tokenRes = await fetch("https://auth.tidal.com/v1/oauth2/token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": "Basic " + btoa(env.TIDAL_CLIENT_ID + ":" + env.TIDAL_CLIENT_SECRET)
-          },
-          body: "grant_type=client_credentials"
+        return new Response(JSON.stringify({
+          tracks: tracks,
+          total: tracks.length
+        }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders }
         });
-
-        const tokenData = await tokenRes.json();
-
-        if (tokenData.access_token) {
-          const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.COUNTRY_CODE || "US"}`;
-
-          const tidalRes = await fetch(tidalUrl, {
-            headers: {
-              "Authorization": `Bearer ${tokenData.access_token}`
-            }
-          });
-
-          if (!tidalRes.ok) {
-            tidalError = `Tidal API returned status ${tidalRes.status}`;
-          } else {
-            const tidalData = await tidalRes.json();
-            const items = tidalData?.items || [];
-
-            tidalTracks = items.slice(0, limit).map(t => ({
-              id: String(t.id),
-              title: t.title,
-              artist: t.artist?.name || "Unknown",
-              album: t.album?.title || "",
-              duration: t.duration || 0,
-              audioQuality: t.audioQuality || "HiFi",
-              cover: t.album?.cover || "",
-              isrc: t.isrc || null,
-              provider: "Tidal"
-            }));
-          }
-        } else {
-          tidalError = "Failed to get Tidal access token";
-        }
-      } catch (e) {
-        tidalError = e.message;
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
       }
-
-      // MERGE + DEDUP
-      const allTracks = [...qobuzTracks, ...tidalTracks];
-      const seen = new Set();
-      const finalTracks = allTracks.filter(track => {
-        const key = track.isrc || (track.title + track.artist).toLowerCase().replace(/\s/g, "");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-      return new Response(JSON.stringify({
-        tracks: finalTracks.slice(0, limit),
-        total: finalTracks.length,
-        tidalDebug: tidalError || "Tidal search ran without error"
-      }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
     }
 
     return new Response(JSON.stringify({
-      message: "Rocks8ar Worker is running (Merged Search v3)"
+      message: "Rocks8ar Worker is running"
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
