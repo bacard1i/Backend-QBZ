@@ -108,3 +108,6 @@ export default {
       message: "Tidal Test Worker - Search only mode"
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+};
