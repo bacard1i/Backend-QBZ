@@ -3,7 +3,8 @@ main = "src/index.js"
 compatibility_date = "2025-01-01"
 
 [vars]
-COUNTRY_CODE = "PT"
+QOBUZ_COUNTRY_CODE = "PT"
+TIDAL_COUNTRY_CODE = "CA"
 
 [observability]
 enabled = true
