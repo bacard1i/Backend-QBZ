@@ -16,12 +16,10 @@ export default {
     // ==================== MERGED SEARCH ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
-      const limit = parseInt(url.searchParams.get("limit")) || 25;
+      const limit = parseInt(url.searchParams.get("limit")) || 20;
 
       if (!query) {
-        return new Response(JSON.stringify({ error: "Missing query" }), { 
-          status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } 
-        });
+        return jsonResponse({ error: "Missing query" }, 400, corsHeaders);
       }
 
       const [qobuzData, tidalData] = await Promise.all([
@@ -31,155 +29,166 @@ export default {
 
       const merged = mergeResults(qobuzData.tracks || [], tidalData.tracks || [], limit);
 
-      return new Response(JSON.stringify({
+      return jsonResponse({
         tracks: merged,
         total: merged.length,
         sources: ["Qobuz", "Tidal"]
-      }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
+      }, 200, corsHeaders);
     }
 
-    // ==================== STREAM ====================
+    // ==================== STREAM (Qobuz First + Tidal Fallback) ====================
     if (path.startsWith("/stream/")) {
       const trackId = path.split("/stream/")[1];
 
+      // Try Qobuz first
       try {
-        const qobuzStream = await getQobuzStream(trackId, env);
-        if (qobuzStream?.streamUrl) {
-          qobuzStream.source = "Qobuz";
-          return new Response(JSON.stringify(qobuzStream), {
-            headers: { "Content-Type": "application/json", ...corsHeaders }
-          });
+        const qobuz = await getQobuzStream(trackId, env);
+        if (qobuz?.streamUrl) {
+          qobuz.source = "Qobuz";
+          return jsonResponse(qobuz, 200, corsHeaders);
         }
-      } catch (_) {}
-
-      const tidalFallback = await getTidalStreamFallback({}, env);
-      if (tidalFallback) {
-        return new Response(JSON.stringify(tidalFallback), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+      } catch (e) {
+        console.log(`[Stream] Qobuz failed for ${trackId}`);
       }
 
-      return new Response(JSON.stringify({ error: "No stream available" }), {
-        status: 404, headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
-    }
-
-    // ==================== TIDAL USER LOGIN (Simple Testing) ====================
-    if (path === "/tidal/login") {
-      const clientId = env.TIDAL_CLIENT_ID;
-      const redirectUri = "http://localhost:3000/callback"; // Must match dashboard
-
-      const codeVerifier = generateCodeVerifier();
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-
-      // Store code_verifier temporarily (in real app use KV or cookie)
-
-      const authUrl = `https://login.tidal.com/authorize?` +
-        `response_type=code` +
-        `&client_id=${clientId}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&scope=r_usr+w_usr` +
-        `&code_challenge=${codeChallenge}` +
-        `&code_challenge_method=S256`;
-
-      return new Response(JSON.stringify({
-        message: "Open this URL in your browser and login with your Tidal account",
-        login_url: authUrl,
-        note: "After login you will be redirected. Copy the 'code' from the URL."
-      }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
-    }
-
-    if (path === "/tidal/callback") {
-      const code = url.searchParams.get("code");
-      if (!code) {
-        return new Response(JSON.stringify({ error: "No code received" }), {
-          status: 400, headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+      // Tidal fallback
+      const tidal = await getTidalStreamFallback({}, env);
+      if (tidal) {
+        return jsonResponse(tidal, 200, corsHeaders);
       }
 
-      // Exchange code for tokens
-      const tokenRes = await fetch("https://auth.tidal.com/v1/oauth2/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          client_id: env.TIDAL_CLIENT_ID,
-          code: code,
-          redirect_uri: "http://localhost:3000/callback",
-          code_verifier: "TEMP_CODE_VERIFIER" // You need to store this properly
-        })
-      });
-
-      const tokens = await tokenRes.json();
-
-      return new Response(JSON.stringify({
-        message: "Login successful! Copy these tokens into your .env / Cloudflare variables",
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_in: tokens.expires_in
-      }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders }
-      });
+      return jsonResponse({ error: "No stream available" }, 404, corsHeaders);
     }
 
-    return new Response(JSON.stringify({
-      message: "Rocks8ar Worker - Merged + Tidal Fallback + Login"
-    }), {
-      headers: { "Content-Type": "application/json", ...corsHeaders }
-    });
+    return jsonResponse({
+      message: "Rocks8ar - Qobuz Primary + Tidal Fallback"
+    }, 200, corsHeaders);
   }
 };
 
-// ==================== YOUR EXISTING QOBUZ FUNCTIONS ====================
-// (Keep your working fetchQobuzSearch and getQobuzStream here)
+// ==================== HELPER ====================
+function jsonResponse(data, status = 200, headers = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", ...headers }
+  });
+}
 
+// ==================== QOBUZ (Working) ====================
 async function fetchQobuzSearch(query, limit, env) {
-  // Paste your working Qobuz search code
-  return { tracks: [] };
+  const res = await fetch(
+    `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit}&country_code=${env.QOBUZ_COUNTRY_CODE || "PT"}`,
+    {
+      headers: {
+        "X-App-Id": env.QOBUZ_APP_ID,
+        "X-User-Auth-Token": env.QOBUZ_USER_AUTH_TOKEN
+      }
+    }
+  );
+
+  if (!res.ok) return { tracks: [] };
+
+  const data = await res.json();
+  const items = data.tracks?.items || [];
+
+  const tracks = items
+    .filter(t => (t.maximum_bit_depth || t.bit_depth || 0) >= 24)
+    .slice(0, limit)
+    .map(t => ({
+      id: String(t.id),
+      title: t.title,
+      artist: t.performer?.name || "Unknown",
+      album: t.album?.title || "",
+      duration: t.duration || 0,
+      audioQuality: `${t.maximum_bit_depth || t.bit_depth}-bit / ${t.maximum_sampling_rate || t.sampling_rate} kHz`,
+      cover: t.album?.image?.large || "",
+      isrc: t.isrc || null,
+      source: "Q"
+    }));
+
+  return { tracks };
 }
 
 async function getQobuzStream(trackId, env) {
-  // Paste your working Qobuz stream code (MD5 signature)
-  return null;
+  const ts = Math.floor(Date.now() / 1000);
+  const sigStr = `trackgetFileUrlformat_id27intentstreamtrack_id${trackId}${ts}${env.QOBUZ_APP_SECRET}`;
+  const sig = await crypto.subtle.digest("MD5", new TextEncoder().encode(sigStr));
+  const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+
+  const res = await fetch(
+    `https://www.qobuz.com/api.json/0.2/track/getFileUrl?track_id=${trackId}&format_id=27&intent=stream&request_ts=${ts}&request_sig=${sigHex}`,
+    { headers: { "X-User-Auth-Token": env.QOBUZ_USER_AUTH_TOKEN } }
+  );
+
+  if (!res.ok) throw new Error("Qobuz stream failed");
+
+  const data = await res.json();
+  return {
+    streamUrl: data.url,
+    quality: `${data.bit_depth || 24}-bit / ${data.sample_rate || 0} kHz`
+  };
 }
 
-// ==================== IMPROVED TIDAL FALLBACK ====================
+// ==================== TIDAL FALLBACK ====================
+async function fetchTidalSearch(query, limit, env) {
+  const token = env.TIDAL_ACCESS_TOKEN;
+  if (!token) return { tracks: [] };
+
+  try {
+    const res = await fetch(
+      `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.TIDAL_COUNTRY_CODE || "CA"}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (!res.ok) return { tracks: [] };
+
+    const data = await res.json();
+    return {
+      tracks: (data.items || []).map(t => ({
+        id: String(t.id),
+        title: t.title,
+        artist: t.artist?.name || "Unknown",
+        album: t.album?.title || "",
+        duration: t.duration || 0,
+        audioQuality: "HiFi",
+        cover: t.album?.cover || "",
+        isrc: t.isrc || null,
+        source: "T"
+      }))
+    };
+  } catch (e) {
+    return { tracks: [] };
+  }
+}
+
 async function getTidalStreamFallback(trackMeta, env) {
-  // Same improved function I gave you earlier
   const token = env.TIDAL_ACCESS_TOKEN;
   if (!token) return null;
 
-  // ... (use the improved version from previous message)
-  return null;
-}
-
-// ==================== HELPER FUNCTIONS ====================
-function generateCodeVerifier() {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return btoa(String.fromCharCode(...array))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-async function generateCodeChallenge(verifier) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return {
+    streamUrl: null,
+    quality: "HiFi",
+    source: "Tidal",
+    note: "Tidal fallback - metadata only (playback limited)"
+  };
 }
 
 function mergeResults(qobuzTracks, tidalTracks, limit) {
-  // Your existing merge logic
   const merged = new Map();
-  // ... (paste your merge function)
+
+  // Qobuz first (priority)
+  for (const t of qobuzTracks) {
+    const key = t.isrc || `${t.title?.toLowerCase()}|${t.artist?.toLowerCase()}`;
+    merged.set(key, { ...t, source: "Q" });
+  }
+
+  // Tidal as fallback
+  for (const t of tidalTracks) {
+    const key = t.isrc || `${t.title?.toLowerCase()}|${t.artist?.toLowerCase()}`;
+    if (!merged.has(key)) {
+      merged.set(key, { ...t, source: "T" });
+    }
+  }
+
   return Array.from(merged.values()).slice(0, limit);
 }
