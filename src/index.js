@@ -13,7 +13,7 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== SEARCH (Qobuz + Static Tidal) ====================
+    // ==================== SEARCH ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
@@ -25,12 +25,11 @@ export default {
         });
       }
 
-      let qobuzTracks = [];
-      let tidalTracks = [];
+      let results = [];
 
-      // Qobuz
+      // --- QOBUZ ---
       try {
-        const qobuzUrl = `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit * 2}&country_code=${env.COUNTRY_CODE || "PT"}`;
+        const qobuzUrl = `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit * 2}&country_code=${env.QOBUZ_COUNTRY_CODE || "PT"}`;
         const res = await fetch(qobuzUrl, {
           headers: {
             "X-App-Id": env.QOBUZ_APP_ID,
@@ -38,30 +37,32 @@ export default {
           }
         });
         const data = await res.json();
-        const items = data?.tracks?.items || [];
 
-        qobuzTracks = items
-          .filter(t => (t.maximum_bit_depth || t.bit_depth || 0) >= 16)
-          .slice(0, limit)
-          .map(t => ({
-            id: String(t.id),
-            title: t.title,
-            artist: t.performer?.name || "Unknown",
-            album: t.album?.title || "",
-            duration: t.duration || 0,
-            audioQuality: `${t.maximum_bit_depth || t.bit_depth || 16}-bit / ${t.maximum_sampling_rate || t.sampling_rate || 0} kHz`,
-            cover: t.album?.image?.large || "",
-            isrc: t.isrc || null,
-            source: "Q"
-          }));
+        if (data?.tracks?.items) {
+          const qobuzTracks = data.tracks.items
+            .filter(t => (t.maximum_bit_depth || t.bit_depth || 0) >= 16)
+            .slice(0, limit)
+            .map(t => ({
+              id: String(t.id),
+              title: t.title,
+              artist: t.performer?.name || "Unknown",
+              album: t.album?.title || "",
+              duration: t.duration || 0,
+              audioQuality: `${t.maximum_bit_depth || t.bit_depth || 16}-bit / ${t.maximum_sampling_rate || t.sampling_rate || 0} kHz`,
+              cover: t.album?.image?.large || "",
+              isrc: t.isrc || null,
+              source: "Q"
+            }));
+          results = results.concat(qobuzTracks);
+        }
       } catch (e) {}
 
-      // Tidal (Static Token)
+      // --- TIDAL ---
       try {
         const accessToken = env.TIDAL_ACCESS_TOKEN;
 
         if (accessToken) {
-          const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.COUNTRY_CODE || "US"}`;
+          const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.TIDAL_COUNTRY_CODE || "CA"}`;
           
           const tidalRes = await fetch(tidalUrl, {
             headers: { "Authorization": `Bearer ${accessToken}` }
@@ -69,9 +70,7 @@ export default {
 
           if (tidalRes.ok) {
             const tidalData = await tidalRes.json();
-            const items = tidalData?.items || [];
-
-            tidalTracks = items.slice(0, limit).map(t => ({
+            const tidalTracks = (tidalData?.items || []).map(t => ({
               id: String(t.id),
               title: t.title,
               artist: t.artist?.name || "Unknown",
@@ -82,23 +81,23 @@ export default {
               isrc: t.isrc || null,
               source: "T"
             }));
+            results = results.concat(tidalTracks);
           }
         }
       } catch (e) {}
 
-      // Merge + Deduplicate
-      const allTracks = [...qobuzTracks, ...tidalTracks];
+      // Deduplicate
       const seen = new Set();
-      const finalTracks = allTracks.filter(track => {
-        const key = track.isrc || (track.title + track.artist).toLowerCase().replace(/\s/g, "");
+      const finalResults = results.filter(track => {
+        const key = track.isrc || (track.title + track.artist).toLowerCase();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
 
       return new Response(JSON.stringify({
-        tracks: finalTracks.slice(0, limit),
-        total: finalTracks.length
+        tracks: finalResults.slice(0, limit),
+        total: finalResults.length
       }), {
         headers: { "Content-Type": "application/json", ...corsHeaders }
       });
@@ -138,7 +137,7 @@ export default {
     }
 
     return new Response(JSON.stringify({
-      message: "Rocks8ar - Static Tidal"
+      message: "Rocks8ar - Qobuz (PT) + Tidal (CA)"
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
