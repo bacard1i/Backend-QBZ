@@ -1,0 +1,8 @@
+# Environment variables (secrets)
+.env
+
+# Node modules
+node_modules/
+
+# Wrangler
+.wrangler/
