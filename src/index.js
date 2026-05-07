@@ -75,7 +75,6 @@ export default {
       const codeChallenge = await generateCodeChallenge(codeVerifier);
 
       // Store code_verifier temporarily (in real app use KV or cookie)
-      // For now we just show it in the response for testing
 
       const authUrl = `https://login.tidal.com/authorize?` +
         `response_type=code` +
