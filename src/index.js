@@ -13,7 +13,7 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== SEARCH (Merged Qobuz + Tidal) ====================
+    // ==================== SEARCH (Qobuz + Tidal with Refresh Token) ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
@@ -28,7 +28,7 @@ export default {
       let qobuzTracks = [];
       let tidalTracks = [];
 
-      // === Search Qobuz ===
+      // Search Qobuz
       try {
         const qobuzUrl = `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit * 2}&country_code=${env.COUNTRY_CODE || "PT"}`;
         const res = await fetch(qobuzUrl, {
@@ -56,9 +56,8 @@ export default {
           }));
       } catch (e) {}
 
-      // === Search Tidal using Refresh Token ===
+      // Search Tidal using Refresh Token
       try {
-        // Step 1: Get fresh access token using refresh_token
         const refreshBody = new URLSearchParams({
           grant_type: "refresh_token",
           refresh_token: env.TIDAL_REFRESH_TOKEN,
@@ -75,7 +74,6 @@ export default {
         const tokenData = await tokenRes.json();
 
         if (tokenData.access_token) {
-          // Step 2: Search Tidal with fresh access token
           const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.COUNTRY_CODE || "US"}`;
           
           const tidalRes = await fetch(tidalUrl, {
@@ -101,7 +99,7 @@ export default {
         }
       } catch (e) {}
 
-      // === Merge + Deduplicate by ISRC ===
+      // Merge + Deduplicate by ISRC
       const allTracks = [...qobuzTracks, ...tidalTracks];
       const seen = new Set();
       const finalTracks = allTracks.filter(track => {
@@ -123,7 +121,6 @@ export default {
     if (path.startsWith("/stream/")) {
       const trackId = path.split("/stream/")[1];
 
-      // Try Qobuz first
       try {
         const ts = Math.floor(Date.now() / 1000);
         const sigStr = `trackgetFileUrlformat_id27intentstreamtrack_id${trackId}${ts}${env.QOBUZ_APP_SECRET}`;
@@ -147,7 +144,6 @@ export default {
         }
       } catch (e) {}
 
-      // Fallback to Tidal
       return new Response(JSON.stringify({
         streamUrl: null,
         quality: "Tidal HiFi (fallback)"
@@ -155,7 +151,7 @@ export default {
     }
 
     return new Response(JSON.stringify({
-      message: "Rocks8ar Merged Worker - Qobuz + Tidal (Refresh Token)"
+      message: "Rocks8ar Final - Qobuz + Tidal (Refresh Token)"
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
