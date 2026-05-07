@@ -13,6 +13,7 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    // ==================== SEARCH (Qobuz + Static Tidal) ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
@@ -55,28 +56,15 @@ export default {
           }));
       } catch (e) {}
 
-      // Tidal
+      // Tidal (Static Token)
       try {
-        const refreshBody = new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: env.TIDAL_REFRESH_TOKEN,
-          client_id: env.TIDAL_CLIENT_ID,
-          client_secret: env.TIDAL_CLIENT_SECRET
-        });
+        const accessToken = env.TIDAL_ACCESS_TOKEN;
 
-        const tokenRes = await fetch("https://auth.tidal.com/v1/oauth2/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: refreshBody.toString()
-        });
-
-        const tokenData = await tokenRes.json();
-
-        if (tokenData.access_token) {
+        if (accessToken) {
           const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.COUNTRY_CODE || "US"}`;
           
           const tidalRes = await fetch(tidalUrl, {
-            headers: { "Authorization": `Bearer ${tokenData.access_token}` }
+            headers: { "Authorization": `Bearer ${accessToken}` }
           });
 
           if (tidalRes.ok) {
@@ -98,7 +86,7 @@ export default {
         }
       } catch (e) {}
 
-      // Merge
+      // Merge + Deduplicate
       const allTracks = [...qobuzTracks, ...tidalTracks];
       const seen = new Set();
       const finalTracks = allTracks.filter(track => {
@@ -116,6 +104,7 @@ export default {
       });
     }
 
+    // ==================== STREAM ====================
     if (path.startsWith("/stream/")) {
       const trackId = path.split("/stream/")[1];
 
@@ -149,7 +138,7 @@ export default {
     }
 
     return new Response(JSON.stringify({
-      message: "Rocks8ar - Final"
+      message: "Rocks8ar - Static Tidal"
     }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
