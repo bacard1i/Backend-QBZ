@@ -13,7 +13,7 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== MERGED SEARCH (Qobuz + Tidal) ====================
+    // ==================== MERGED SEARCH ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
@@ -37,7 +37,6 @@ export default {
           }
         });
         const data = await res.json();
-
         if (data?.tracks?.items) {
           const qobuzTracks = data.tracks.items
             .filter(t => (t.maximum_bit_depth || t.bit_depth || 0) >= 16)
@@ -84,7 +83,6 @@ export default {
         }
       } catch (e) {}
 
-      // Deduplicate
       const seen = new Set();
       const finalResults = results.filter(track => {
         const key = track.isrc || (track.title + track.artist).toLowerCase();
@@ -101,7 +99,7 @@ export default {
       });
     }
 
-    // ==================== TIDAL ONLY (TEST ENDPOINT) ====================
+    // ==================== TIDAL ONLY TEST ENDPOINT ====================
     if (path === "/tidal/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 25;
@@ -164,7 +162,6 @@ export default {
       }
     }
 
-    // Default message
     return new Response(JSON.stringify({
       message: "Rocks8ar - Use /search or /tidal/search"
     }), {
