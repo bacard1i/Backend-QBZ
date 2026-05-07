@@ -13,51 +13,22 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // ==================== SEARCH (Qobuz + Tidal with Refresh Token) ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
-      const limit = parseInt(url.searchParams.get("limit")) || 25;
 
-      if (!query) {
-        return new Response(JSON.stringify({ error: "Missing query" }), { 
-          status: 400, 
-          headers: { "Content-Type": "application/json", ...corsHeaders } 
-        });
-      }
+      let result = {
+        step: "",
+        success: false,
+        error: null,
+        tokenData: null,
+        searchStatus: null,
+        resultsCount: 0
+      };
 
-      let qobuzTracks = [];
-      let tidalTracks = [];
-
-      // Search Qobuz
       try {
-        const qobuzUrl = `https://www.qobuz.com/api.json/0.2/track/search?query=${encodeURIComponent(query)}&limit=${limit * 2}&country_code=${env.COUNTRY_CODE || "PT"}`;
-        const res = await fetch(qobuzUrl, {
-          headers: {
-            "X-App-Id": env.QOBUZ_APP_ID,
-            "X-User-Auth-Token": env.QOBUZ_USER_AUTH_TOKEN
-          }
-        });
-        const data = await res.json();
-        const items = data?.tracks?.items || [];
+        // Step 1: Refresh Token
+        result.step = "refresh_token";
 
-        qobuzTracks = items
-          .filter(t => (t.maximum_bit_depth || t.bit_depth || 0) >= 16)
-          .slice(0, limit)
-          .map(t => ({
-            id: String(t.id),
-            title: t.title,
-            artist: t.performer?.name || "Unknown",
-            album: t.album?.title || "",
-            duration: t.duration || 0,
-            audioQuality: `${t.maximum_bit_depth || t.bit_depth || 16}-bit / ${t.maximum_sampling_rate || t.sampling_rate || 0} kHz`,
-            cover: t.album?.image?.large || "",
-            isrc: t.isrc || null,
-            source: "Q"
-          }));
-      } catch (e) {}
-
-      // Search Tidal using Refresh Token
-      try {
         const refreshBody = new URLSearchParams({
           grant_type: "refresh_token",
           refresh_token: env.TIDAL_REFRESH_TOKEN,
@@ -72,87 +43,44 @@ export default {
         });
 
         const tokenData = await tokenRes.json();
+        result.tokenData = tokenData;
 
-        if (tokenData.access_token) {
-          const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=${limit}&countryCode=${env.COUNTRY_CODE || "US"}`;
-          
-          const tidalRes = await fetch(tidalUrl, {
-            headers: { "Authorization": `Bearer ${tokenData.access_token}` }
+        if (!tokenData.access_token) {
+          result.error = "Failed to get access token";
+          return new Response(JSON.stringify(result), {
+            headers: { "Content-Type": "application/json", ...corsHeaders }
           });
-
-          if (tidalRes.ok) {
-            const tidalData = await tidalRes.json();
-            const items = tidalData?.items || [];
-
-            tidalTracks = items.slice(0, limit).map(t => ({
-              id: String(t.id),
-              title: t.title,
-              artist: t.artist?.name || "Unknown",
-              album: t.album?.title || "",
-              duration: t.duration || 0,
-              audioQuality: "HiFi",
-              cover: t.album?.cover || "",
-              isrc: t.isrc || null,
-              source: "T"
-            }));
-          }
         }
-      } catch (e) {}
 
-      // Merge + Deduplicate by ISRC
-      const allTracks = [...qobuzTracks, ...tidalTracks];
-      const seen = new Set();
-      const finalTracks = allTracks.filter(track => {
-        const key = track.isrc || (track.title + track.artist).toLowerCase().replace(/\s/g, "");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+        // Step 2: Search Tidal
+        result.step = "search_tidal";
 
-      return new Response(JSON.stringify({
-        tracks: finalTracks.slice(0, limit),
-        total: finalTracks.length
-      }), {
+        const tidalUrl = `https://api.tidal.com/v1/search/tracks?query=${encodeURIComponent(query)}&limit=10&countryCode=${env.COUNTRY_CODE || "US"}`;
+        
+        const tidalRes = await fetch(tidalUrl, {
+          headers: { "Authorization": `Bearer ${tokenData.access_token}` }
+        });
+
+        result.searchStatus = tidalRes.status;
+
+        if (tidalRes.ok) {
+          const tidalData = await tidalRes.json();
+          result.resultsCount = tidalData?.items?.length || 0;
+          result.success = true;
+        } else {
+          result.error = await tidalRes.text();
+        }
+
+      } catch (e) {
+        result.error = e.message;
+      }
+
+      return new Response(JSON.stringify(result), {
         headers: { "Content-Type": "application/json", ...corsHeaders }
       });
     }
 
-    // ==================== STREAM ====================
-    if (path.startsWith("/stream/")) {
-      const trackId = path.split("/stream/")[1];
-
-      try {
-        const ts = Math.floor(Date.now() / 1000);
-        const sigStr = `trackgetFileUrlformat_id27intentstreamtrack_id${trackId}${ts}${env.QOBUZ_APP_SECRET}`;
-        const sig = await crypto.subtle.digest("MD5", new TextEncoder().encode(sigStr));
-        const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-
-        const qUrl = `https://www.qobuz.com/api.json/0.2/track/getFileUrl?track_id=${trackId}&format_id=27&intent=stream&request_ts=${ts}&request_sig=${sigHex}&app_id=${env.QOBUZ_APP_ID}`;
-
-        const qRes = await fetch(qUrl, {
-          headers: { "X-User-Auth-Token": env.QOBUZ_USER_AUTH_TOKEN }
-        });
-
-        if (qRes.ok) {
-          const data = await qRes.json();
-          if (data.url) {
-            return new Response(JSON.stringify({
-              streamUrl: data.url,
-              quality: `${data.bit_depth || 24}-bit / ${data.sample_rate || 0} kHz`
-            }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
-          }
-        }
-      } catch (e) {}
-
-      return new Response(JSON.stringify({
-        streamUrl: null,
-        quality: "Tidal HiFi (fallback)"
-      }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
-    }
-
-    return new Response(JSON.stringify({
-      message: "Rocks8ar Final - Qobuz + Tidal (Refresh Token)"
-    }), {
+    return new Response(JSON.stringify({ message: "Debug Mode" }), {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
