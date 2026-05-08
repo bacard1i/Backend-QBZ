@@ -8,7 +8,7 @@ export default {
       return new Response(null, { headers: cors });
     }
 
-    // ==================== SEARCH ====================
+    // SEARCH
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 20;
@@ -46,46 +46,49 @@ export default {
       });
     }
 
-    // ==================== STREAM ====================
+    // STREAM - Try multiple format_ids
     if (path.startsWith("/stream/")) {
       const trackId = path.split("/stream/")[1];
+      const formatIds = [27, 7, 6]; // Try highest first
 
-      try {
-        const ts = Math.floor(Date.now() / 1000);
-        const sigStr = `trackgetFileUrlformat_id27intentstreamtrack_id${trackId}${ts}${env.QOBUZ_APP_SECRET}`;
-        const sigBuffer = await crypto.subtle.digest("MD5", new TextEncoder().encode(sigStr));
-        const sigHex = Array.from(new Uint8Array(sigBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+      for (const formatId of formatIds) {
+        try {
+          const ts = Math.floor(Date.now() / 1000);
+          const sigStr = `trackgetFileUrlformat_id${formatId}intentstreamtrack_id${trackId}${ts}${env.QOBUZ_APP_SECRET}`;
+          
+          const sigBuffer = await crypto.subtle.digest("MD5", new TextEncoder().encode(sigStr));
+          const sigHex = Array.from(new Uint8Array(sigBuffer))
+            .map(b => b.toString(16).padStart(2, "0"))
+            .join("");
 
-        const streamRes = await fetch(
-          `https://www.qobuz.com/api.json/0.2/track/getFileUrl?track_id=${trackId}&format_id=27&intent=stream&request_ts=${ts}&request_sig=${sigHex}`,
-          { headers: { "X-User-Auth-Token": env.QOBUZ_USER_AUTH_TOKEN } }
-        );
+          const streamRes = await fetch(
+            `https://www.qobuz.com/api.json/0.2/track/getFileUrl?track_id=${trackId}&format_id=${formatId}&intent=stream&request_ts=${ts}&request_sig=${sigHex}`,
+            { headers: { "X-User-Auth-Token": env.QOBUZ_USER_AUTH_TOKEN } }
+          );
 
-        const streamData = await streamRes.json();
+          const streamData = await streamRes.json();
 
-        if (streamData.url) {
-          return new Response(JSON.stringify({
-            streamUrl: streamData.url,
-            track: {
-              audioQuality: `${streamData.bit_depth || 24}-bit / ${streamData.sample_rate || 0} kHz`,
-              source: "Qobuz"
-            }
-          }), {
-            headers: { "Content-Type": "application/json", ...cors }
-          });
+          if (streamData.url) {
+            return new Response(JSON.stringify({
+              streamUrl: streamData.url,
+              track: {
+                audioQuality: `${streamData.bit_depth || 24}-bit / ${streamData.sample_rate || 0} kHz`,
+                source: "Qobuz"
+              }
+            }), {
+              headers: { "Content-Type": "application/json", ...cors }
+            });
+          }
+        } catch (e) {
+          console.log(`Format ${formatId} failed:`, e.message);
         }
-      } catch (e) {
-        console.log("Qobuz stream error:", e.message);
       }
 
-      // If Qobuz fails, return clear error instead of broken Tidal fallback
+      // All formats failed
       return new Response(JSON.stringify({
         streamUrl: null,
-        track: {
-          audioQuality: "Unavailable",
-          source: "None"
-        },
-        error: "Qobuz stream failed for this track"
+        track: { audioQuality: "Unavailable", source: "None" },
+        error: "No stream available for this track"
       }), {
         headers: { "Content-Type": "application/json", ...cors }
       });
