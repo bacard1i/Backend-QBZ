@@ -16,7 +16,7 @@ export default {
       if (!query) return json({ error: "Missing query" }, 400, cors);
 
       const token = env.TIDAL_ACCESS_TOKEN;
-      if (!token) return json({ tracks: [], error: "No Tidal token" }, 200, cors);
+      if (!token) return json({ tracks: [], error: "No Tidal token configured" }, 200, cors);
 
       try {
         const res = await fetch(
@@ -48,18 +48,14 @@ export default {
     // ==================== TIDAL STREAM ====================
     if (path.startsWith("/tidal/stream/")) {
       const trackId = path.split("/tidal/stream/")[1];
-      // For now we return metadata only (real Tidal streaming needs more work)
       return json({
         streamUrl: null,
-        track: {
-          audioQuality: "HiFi",
-          source: "Tidal"
-        },
+        track: { audioQuality: "HiFi", source: "Tidal" },
         note: "Tidal direct stream not implemented yet"
       }, 200, cors);
     }
 
-    return json({ message: "Rocks8ar Tidal Worker" }, 200, cors);
+    return json({ message: "Rocks8ar Tidal Worker v1.7" }, 200, cors);
   }
 };
 
