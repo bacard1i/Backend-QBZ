@@ -1,26 +1,19 @@
 {
   "category:modules": [
     {
-      "id": "qobuz-rocks8ar",
+      "id": "rocks8ar",
       "name": "Rocks8ar",
-      "pkg": "com.8spine.module.qobuz.rocks8ar",
+      "pkg": "com.8spine.module.rocks8ar",
       "file": "qobuz-bitch.js",
       "download": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-      "version": "2.0",
+      "version": "2.1",
       "author": "bacardii",
-      "description": "Qobuz Primary + Direct Tidal Fallback (Best Hi-Res quality)",
-      "tags": ["QOBUZ PRO", "HI-RES", "MERGED", "INSTANT PLAYBACK"],
-      "featured": false,
-      "trusted": true,
-      "nsfw": false,
-      "size": 9500,
-      "lang": "all",
-      "folder": "modules",
+      "description": "Qobuz Primary + Direct Tidal Fallback",
+      "tags": ["QOBUZ", "HI-RES", "MERGED"],
       "sources": [
         {
           "name": "Rocks8ar",
-          "lang": "all",
-          "id": "qobuz-rocks8ar",
+          "id": "rocks8ar",
           "baseUrl": "."
         }
       ]
