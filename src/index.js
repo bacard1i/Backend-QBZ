@@ -32,7 +32,6 @@ export default {
     if (path.startsWith("/stream/")) {
       const trackId = path.split("/stream/")[1];
 
-      // Qobuz First
       try {
         const qobuz = await qobuzStream(trackId, env);
         if (qobuz?.streamUrl) {
@@ -41,7 +40,6 @@ export default {
         }
       } catch (e) {}
 
-      // Tidal Fallback
       const tidal = await tidalStream(trackId, env);
       if (tidal) return json(tidal, 200, cors);
 
