@@ -75,6 +75,20 @@ export default {
     return jsonResponse({ error: "Not found" }, 404);
   }
 };
+    // ========== TIDAL ONLY TEST ENDPOINT ==========
+    if (path === "/tidal/search") {
+      const query = url.searchParams.get("q") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "10");
+
+      if (!query) return jsonResponse({ tracks: [], total: 0 });
+
+      try {
+        const tidalTracks = await searchTidal(query, limit, env);
+        return jsonResponse({ tracks: tidalTracks, total: tidalTracks.length });
+      } catch (e) {
+        return jsonResponse({ tracks: [], total: 0, error: e.message }, 500);
+      }
+    }
 
 // =============================================
 // QOBUZ
