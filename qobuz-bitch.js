@@ -1,9 +1,11 @@
-export default {
+const Rocks8ar = {
   id: "rocks8ar",
   name: "Rocks8ar",
   version: "2.1",
   author: "bacardii",
-  description: "Qobuz Primary + Tidal Fallback",
+  description: "Qobuz Primary + Direct Tidal Fallback",
+
+  labels: ["QOBUZ", "HI-RES", "MERGED"],
 
   async searchTracks(query, limit = 20) {
     try {
@@ -28,3 +30,5 @@ export default {
     }
   }
 };
+
+return Rocks8ar;
