@@ -9,58 +9,46 @@ export default {
       "Access-Control-Allow-Headers": "Content-Type",
     };
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: cors });
-    }
+    if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
     // ==================== SEARCH ====================
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 20;
 
-      if (!query) {
-        return json({ error: "Missing query" }, 400, cors);
-      }
+      if (!query) return json({ error: "Missing query" }, 400, cors);
 
-      const [qobuzData, tidalData] = await Promise.all([
+      const [qobuz, tidal] = await Promise.all([
         qobuzSearch(query, limit * 2, env),
         tidalSearch(query, limit * 2, env)
       ]);
 
-      const merged = mergeResults(qobuzData.tracks || [], tidalData.tracks || [], limit);
+      const merged = mergeResults(qobuz.tracks || [], tidal.tracks || [], limit);
 
-      return json({
-        tracks: merged,
-        total: merged.length,
-        sources: ["Qobuz", "Tidal"]
-      }, 200, cors);
+      return json({ tracks: merged, total: merged.length }, 200, cors);
     }
 
     // ==================== STREAM ====================
     if (path.startsWith("/stream/")) {
       const trackId = path.split("/stream/")[1];
 
-      // Try Qobuz first (best quality)
+      // Qobuz First
       try {
         const qobuz = await qobuzStream(trackId, env);
         if (qobuz?.streamUrl) {
           qobuz.source = "Qobuz";
           return json(qobuz, 200, cors);
         }
-      } catch (e) {
-        console.log(`[Stream] Qobuz failed for ${trackId}`);
-      }
+      } catch (e) {}
 
-      // Tidal fallback
+      // Tidal Fallback
       const tidal = await tidalStream(trackId, env);
-      if (tidal) {
-        return json(tidal, 200, cors);
-      }
+      if (tidal) return json(tidal, 200, cors);
 
       return json({ error: "No stream available" }, 404, cors);
     }
 
-    return json({ message: "Rocks8ar - Qobuz + Tidal (Direct on Cloudflare)" }, 200, cors);
+    return json({ message: "Rocks8ar v2.0 - Qobuz + Tidal" }, 200, cors);
   }
 };
 
@@ -84,7 +72,6 @@ async function qobuzSearch(query, limit, env) {
   );
 
   if (!res.ok) return { tracks: [] };
-
   const data = await res.json();
   const items = data.tracks?.items || [];
 
@@ -118,15 +105,15 @@ async function qobuzStream(trackId, env) {
   );
 
   if (!res.ok) throw new Error("Qobuz stream failed");
-
   const data = await res.json();
+
   return {
     streamUrl: data.url,
     quality: `${data.bit_depth || 24}-bit / ${data.sample_rate || 0} kHz`
   };
 }
 
-// ==================== TIDAL (Direct with your token) ====================
+// ==================== TIDAL ====================
 async function tidalSearch(query, limit, env) {
   const token = env.TIDAL_ACCESS_TOKEN;
   if (!token) return { tracks: [] };
@@ -138,7 +125,6 @@ async function tidalSearch(query, limit, env) {
     );
 
     if (!res.ok) return { tracks: [] };
-
     const data = await res.json();
 
     return {
@@ -163,14 +149,12 @@ async function tidalStream(trackId, env) {
   const token = env.TIDAL_ACCESS_TOKEN;
   if (!token) return null;
 
-  // Basic Tidal fallback (returns metadata)
-  // For real stream URLs, more advanced logic is needed
   return {
     streamUrl: null,
     quality: "HiFi",
     source: "Tidal",
     tidalId: trackId,
-    note: "Tidal stream via direct API is limited. Full playback may need additional logic."
+    note: "Tidal stream via direct API is limited"
   };
 }
 
@@ -178,13 +162,11 @@ async function tidalStream(trackId, env) {
 function mergeResults(qobuzTracks, tidalTracks, limit) {
   const map = new Map();
 
-  // Qobuz has priority
   for (const t of qobuzTracks) {
     const key = t.isrc || `${t.title}|${t.artist}`.toLowerCase();
     map.set(key, { ...t, source: "Q" });
   }
 
-  // Tidal as fallback
   for (const t of tidalTracks) {
     const key = t.isrc || `${t.title}|${t.artist}`.toLowerCase();
     if (!map.has(key)) {
