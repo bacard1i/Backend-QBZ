@@ -6,13 +6,20 @@
       "pkg": "com.8spine.module.rocks8ar",
       "file": "qobuz-bitch.js",
       "download": "https://raw.githubusercontent.com/bacard1i/Backend-QBZ/main/qobuz-bitch.js",
-      "version": "2.1",
+      "version": "v2.1",
       "author": "bacardii",
       "description": "Qobuz Primary + Direct Tidal Fallback",
       "tags": ["QOBUZ", "HI-RES", "MERGED"],
+      "featured": false,
+      "trusted": true,
+      "nsfw": false,
+      "size": 8500,
+      "lang": "all",
+      "folder": "modules",
       "sources": [
         {
           "name": "Rocks8ar",
+          "lang": "all",
           "id": "rocks8ar",
           "baseUrl": "."
         }
