@@ -1,9 +1,9 @@
 export default {
-  id: "rocks8ar",
+  id: "qobuz-rocks8ar",
   name: "Rocks8ar",
   version: "2.0",
   author: "bacardii",
-  description: "Qobuz Primary + Direct Tidal Fallback (Hi-Res focused)",
+  description: "Qobuz Primary + Direct Tidal Fallback (Best Hi-Res quality)",
 
   async searchTracks(query, limit = 20) {
     const res = await fetch(
@@ -18,10 +18,5 @@ export default {
       `https://pushit.hatestar.workers.dev/stream/${trackId}`
     );
     return await res.json();
-  },
-
-  async getAlbum(albumId) {
-    // Optional: You can expand this later if needed
-    return null;
   }
 };
