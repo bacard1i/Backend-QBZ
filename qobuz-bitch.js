@@ -205,4 +205,4 @@ return {
   getTrackStreamUrl: getTrackStreamUrl,
   getAlbum: getAlbum,
   preloadTrack: preloadTrack
-}
+};
