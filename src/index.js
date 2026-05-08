@@ -8,7 +8,7 @@ export default {
       return new Response(null, { headers: cors });
     }
 
-    // SEARCH
+    // SEARCH (keep as is - it's working good)
     if (path === "/search") {
       const query = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit")) || 20;
@@ -46,20 +46,17 @@ export default {
       });
     }
 
-    // STREAM - Try multiple format_ids
+    // STREAM - Try multiple formats
     if (path.startsWith("/stream/")) {
       const trackId = path.split("/stream/")[1];
-      const formatIds = [27, 7, 6]; // Try highest first
+      const formatsToTry = [27, 7, 6, 5]; // Hi-Res first, then lower
 
-      for (const formatId of formatIds) {
+      for (const formatId of formatsToTry) {
         try {
           const ts = Math.floor(Date.now() / 1000);
           const sigStr = `trackgetFileUrlformat_id${formatId}intentstreamtrack_id${trackId}${ts}${env.QOBUZ_APP_SECRET}`;
-          
           const sigBuffer = await crypto.subtle.digest("MD5", new TextEncoder().encode(sigStr));
-          const sigHex = Array.from(new Uint8Array(sigBuffer))
-            .map(b => b.toString(16).padStart(2, "0"))
-            .join("");
+          const sigHex = Array.from(new Uint8Array(sigBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 
           const streamRes = await fetch(
             `https://www.qobuz.com/api.json/0.2/track/getFileUrl?track_id=${trackId}&format_id=${formatId}&intent=stream&request_ts=${ts}&request_sig=${sigHex}`,
@@ -72,29 +69,27 @@ export default {
             return new Response(JSON.stringify({
               streamUrl: streamData.url,
               track: {
-                audioQuality: `${streamData.bit_depth || 24}-bit / ${streamData.sample_rate || 0} kHz`,
+                audioQuality: `${streamData.bit_depth || 16}-bit / ${streamData.sample_rate || 44.1} kHz`,
                 source: "Qobuz"
               }
             }), {
               headers: { "Content-Type": "application/json", ...cors }
             });
           }
-        } catch (e) {
-          console.log(`Format ${formatId} failed:`, e.message);
-        }
+        } catch (e) {}
       }
 
-      // All formats failed
+      // Nothing worked
       return new Response(JSON.stringify({
         streamUrl: null,
-        track: { audioQuality: "Unavailable", source: "None" },
-        error: "No stream available for this track"
+        track: { audioQuality: "Unavailable", source: "Qobuz" },
+        error: "This track is not streamable with current Qobuz access"
       }), {
         headers: { "Content-Type": "application/json", ...cors }
       });
     }
 
-    return new Response(JSON.stringify({ message: "Rocks8ar Worker" }), {
+    return new Response(JSON.stringify({ message: "Rocks8ar" }), {
       headers: { "Content-Type": "application/json", ...cors }
     });
   }
